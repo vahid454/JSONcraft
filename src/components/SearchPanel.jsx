@@ -22,52 +22,98 @@ function flattenJSON(obj, prefix = "") {
   return results;
 }
 
-function ValueChip({ val }) {
-  if (val === null) return <span className="text-red-400 text-xs">null</span>;
-  if (typeof val === "boolean") return <span className="text-amber-400 text-xs">{String(val)}</span>;
-  if (typeof val === "number") return <span className="text-blue-400 text-xs">{val}</span>;
-  return <span className="text-emerald-400 text-xs">"{String(val)}"</span>;
+function ValueChip({ val, dark }) {
+  const colors = {
+    null:    dark ? "#f87171" : "#dc2626",
+    boolean: dark ? "#f59e0b" : "#d97706",
+    number:  dark ? "#60a5fa" : "#2563eb",
+    string:  dark ? "#10b981" : "#059669",
+  };
+  if (val === null)          return <span style={{ color: colors.null,    fontSize: 11 }}>null</span>;
+  if (typeof val === "boolean") return <span style={{ color: colors.boolean, fontSize: 11 }}>{String(val)}</span>;
+  if (typeof val === "number")  return <span style={{ color: colors.number,  fontSize: 11 }}>{val}</span>;
+  return <span style={{ color: colors.string, fontSize: 11 }}>"{String(val)}"</span>;
 }
 
-export default function SearchPanel({ data }) {
-  const [query, setQuery] = useState("");
+export default function SearchPanel({ data, dark }) {
+  const [query, setQuery]       = useState("");
+  const [copied, setCopied]     = useState(null);
 
-  const flat = useMemo(() => flattenJSON(data), [data]);
+  const bg2   = dark ? "#111827" : "#ffffff";
+  const bdr   = dark ? "#1f2937" : "#e2e8f0";
+  const txt   = dark ? "#e2e8f0" : "#1e293b";
+  const mute  = dark ? "#6b7280" : "#94a3b8";
+  const hover = dark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)";
 
+  const flat    = useMemo(() => flattenJSON(data), [data]);
   const results = useMemo(() => {
     if (!query.trim()) return flat;
     const q = query.toLowerCase();
     return flat.filter(({ path, value }) =>
-      path.toLowerCase().includes(q) ||
-      String(value).toLowerCase().includes(q)
+      path.toLowerCase().includes(q) || String(value).toLowerCase().includes(q)
     );
   }, [flat, query]);
 
+  const copyVal = (val, i) => {
+    navigator.clipboard.writeText(String(val)).then(() => {
+      setCopied(i);
+      setTimeout(() => setCopied(null), 1500);
+    });
+  };
+
   return (
-    <div className="flex flex-col gap-3 h-full">
-      <div className="relative">
+    <div style={{ display:"flex", flexDirection:"column", gap:10, height:"100%", minHeight:0 }}>
+      {/* Search input */}
+      <div style={{ position:"relative", flexShrink:0 }}>
         <input
           autoFocus
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Search keys or values..."
-          className="w-full bg-gray-900 border border-gray-700 focus:border-emerald-600 rounded-lg px-4 py-2.5 text-sm text-gray-200 placeholder-gray-600 outline-none transition-colors"
-          style={{fontFamily:"inherit"}}
+          style={{
+            width:"100%", padding:"9px 36px 9px 12px", borderRadius:8,
+            background: bg2, border:`1px solid ${bdr}`, color: txt,
+            fontSize:13, fontFamily:"inherit", outline:"none", boxSizing:"border-box",
+            transition:"border-color 0.15s",
+          }}
+          onFocus={e => e.target.style.borderColor = "#10b981"}
+          onBlur={e => e.target.style.borderColor = bdr}
         />
         {query && (
-          <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-300 text-xs">✕</button>
+          <button onClick={() => setQuery("")} style={{
+            position:"absolute", right:10, top:"50%", transform:"translateY(-50%)",
+            background:"transparent", border:"none", cursor:"pointer",
+            color: mute, fontSize:13, fontFamily:"inherit", padding:0,
+          }}>✕</button>
         )}
       </div>
-      <div className="text-xs text-gray-600">{results.length} result{results.length !== 1 ? "s" : ""} {query ? `for "${query}"` : "total"}</div>
-      <div className="flex-1 overflow-auto flex flex-col gap-1">
+
+      {/* Count */}
+      <div style={{ fontSize:11, color: mute, flexShrink:0 }}>
+        {results.length} {results.length === 1 ? "result" : "results"}
+        {query && <span> for "<span style={{ color: dark ? "#e2e8f0" : "#334155" }}>{query}</span>"</span>}
+      </div>
+
+      {/* Results */}
+      <div style={{ flex:1, overflowY:"auto", minHeight:0, display:"flex", flexDirection:"column", gap:1 }}>
         {results.map(({ path, value }, i) => (
-          <div key={i} className="flex items-center justify-between gap-3 px-3 py-2 rounded-md hover:bg-gray-900 group transition-colors">
-            <span className="text-xs text-gray-400 font-mono truncate flex-1">{path}</span>
-            <ValueChip val={value} />
-            <button
-              onClick={() => navigator.clipboard.writeText(String(value))}
-              className="text-xs text-gray-700 hover:text-emerald-400 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-              copy
+          <div key={i}
+            style={{ display:"flex", alignItems:"center", gap:10, padding:"7px 10px",
+              borderRadius:6, transition:"background 0.1s", cursor:"default" }}
+            onMouseEnter={e => e.currentTarget.style.background = hover}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+          >
+            <span style={{ fontSize:11, color: dark ? "#94a3b8" : "#475569",
+              fontFamily:"inherit", flex:1, overflow:"hidden", textOverflow:"ellipsis",
+              whiteSpace:"nowrap", minWidth:0 }}>{path}</span>
+            <ValueChip val={value} dark={dark} />
+            <button onClick={() => copyVal(value, i)} style={{
+              fontSize:11, color: copied === i ? "#10b981" : mute,
+              background:"transparent", border:"none", cursor:"pointer",
+              fontFamily:"inherit", flexShrink:0, padding:0,
+              transition:"color 0.15s",
+            }}>
+              {copied === i ? "✓" : "copy"}
             </button>
           </div>
         ))}

@@ -1,29 +1,43 @@
-export default function Toolbar({ onFormat, onMinify, onCopy, onClear, copyLabel, hasParsed }) {
-  const base = "px-3 py-1.5 text-xs rounded-md border transition-all duration-150 tracking-wide flex items-center gap-1.5";
-  const on   = `${base} border-emerald-800 text-emerald-400 bg-emerald-950/60 hover:bg-emerald-900/60 hover:border-emerald-600`;
-  const off  = `${base} border-gray-800 text-gray-600 bg-gray-900/50 cursor-not-allowed`;
-  const norm = `${base} border-gray-700 text-gray-400 bg-gray-900 hover:border-gray-500 hover:text-white`;
-  const del  = `${base} border-gray-800 text-gray-600 bg-gray-900 hover:border-red-800 hover:text-red-400`;
+export default function Toolbar({ onFormat, onMinify, onCopy, onClear, copyLabel, hasParsed, dark, inputType }) {
+  const bg     = dark ? "#030712" : "#f8fafc";
+  const border = dark ? "#1f2937" : "#e2e8f0";
+
+  const base = {
+    padding: "5px 12px", fontSize: 11, borderRadius: 6, cursor: "pointer",
+    fontFamily: "inherit", transition: "all 0.15s", border: `1px solid ${border}`,
+    background: "transparent",
+  };
+  const on  = { ...base, borderColor:"#10b981", color:"#10b981" };
+  const off = { ...base, color: dark ? "#374151" : "#cbd5e1", borderColor: dark ? "#1f2937" : "#f1f5f9", cursor:"not-allowed" };
+  const nor = { ...base, color: dark ? "#6b7280" : "#94a3b8" };
+  const del = { ...base, color: dark ? "#6b7280" : "#94a3b8" };
+
+  const isXML = inputType === "xml";
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-800 bg-gray-950/80 flex-wrap shrink-0">
-      <button onClick={onFormat} disabled={!hasParsed} className={hasParsed ? on : off}>
+    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 16px",
+      borderBottom:`1px solid ${border}`, background: bg, flexWrap:"wrap", flexShrink:0 }}>
+      <button onClick={onFormat} disabled={!hasParsed || isXML} style={hasParsed && !isXML ? on : off}>
         ⌥ Format
       </button>
-      <button onClick={onMinify} disabled={!hasParsed} className={hasParsed ? norm : off}>
+      <button onClick={onMinify} disabled={!hasParsed || isXML} style={hasParsed && !isXML ? nor : off}>
         ⊟ Minify
       </button>
-      <div className="w-px h-4 bg-gray-800 mx-1" />
-      <button onClick={onCopy} disabled={!hasParsed} className={hasParsed ? norm : off}>
+      <div style={{ width:1, height:16, background: border }} />
+      <button onClick={onCopy} disabled={!hasParsed} style={hasParsed ? nor : off}>
         {copyLabel === "Copied!" ? "✓ Copied!" : "⎘ Copy"}
       </button>
-      <div className="w-px h-4 bg-gray-800 mx-1" />
-      <button onClick={onClear} className={del}>
-        ✕ Clear
-      </button>
-      <div className="ml-auto text-xs text-gray-700 hidden sm:block">
-        JSONcraft · format · validate · convert · search
-      </div>
+      <div style={{ width:1, height:16, background: border }} />
+      <button onClick={onClear} style={del}>✕ Clear</button>
+      {isXML && hasParsed && (
+        <span style={{ fontSize:11, color:"#f59e0b", marginLeft:4 }}>
+          XML detected — use Convert tab to transform
+        </span>
+      )}
+      <div style={{ flex:1 }} />
+      <span style={{ fontSize:11, color: dark ? "#1f2937" : "#e2e8f0" }}>
+        JSON · XML · YAML · CSV · TypeScript
+      </span>
     </div>
   );
 }

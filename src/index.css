@@ -4,28 +4,34 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  box-sizing: border-box;
-}
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
   margin: 0;
   padding: 0;
-  background: #030712;
   overflow: hidden;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ── Scrollbars — dark ── */
+.dark-scroll ::-webkit-scrollbar,
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+
+/* ── Light mode scrollbars ── */
+.light ::-webkit-scrollbar-thumb { background: #cbd5e1; }
+.light ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Monaco editor overrides for light mode ── */
+.monaco-editor .margin { background: transparent !important; }
+
+/* ── Input / textarea base ── */
+input, textarea, select {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
-::-webkit-scrollbar-track {
-  background: #111827;
-}
-::-webkit-scrollbar-thumb {
-  background: #374151;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #4b5563;
+
+/* ── Smooth transitions on theme switch ── */
+header, .toolbar, .statusbar {
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
 }

@@ -1,10 +1,10 @@
 import MonacoEditor from "@monaco-editor/react";
 
-export default function Editor({ value, onChange, dark, error }) {
+export default function Editor({ value, onChange, dark, error, language = "json" }) {
   return (
     <MonacoEditor
       height="100%"
-      defaultLanguage="json"
+      language={language}
       value={value}
       onChange={(val) => onChange(val || "")}
       theme={dark ? "vs-dark" : "light"}
@@ -26,6 +26,7 @@ export default function Editor({ value, onChange, dark, error }) {
         folding: true,
         lineDecorationsWidth: 8,
         contextmenu: false,
+        automaticLayout: true,
       }}
     />
   );

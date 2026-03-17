@@ -89,9 +89,9 @@ function xmlToJSON(str) {
 
 // ── Mode config ─────────────────────────────────────────────
 const MODES = [
-  { id: "json-yaml", label: "JSON → YAML", dir: "from" },
-  { id: "json-csv",  label: "JSON → CSV",  dir: "from" },
-  { id: "json-xml",  label: "JSON → XML",  dir: "from" },
+  { id: "json-yaml", label: "YAML", dir: "from" },
+  { id: "json-csv",  label: "CSV",  dir: "from" },
+  { id: "json-xml",  label: "XML",  dir: "from" },
   { id: "yaml-json", label: "YAML → JSON", dir: "to"   },
   { id: "csv-json",  label: "CSV → JSON",  dir: "to"   },
   { id: "xml-json",  label: "XML → JSON",  dir: "to"   },

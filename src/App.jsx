@@ -1,13 +1,13 @@
 import { useState, useCallback, useRef } from "react";
-import Editor from "./components/Editor";
-import TreeView from "./components/TreeView";
-import Toolbar from "./components/Toolbar";
-import StatusBar from "./components/StatusBar";
-import ConvertPanel from "./components/ConvertPanel";
-import TypesPanel from "./components/TypesPanel";
-import SearchPanel from "./components/SearchPanel";
-import ContactModal from "./components/ContactModal";
-import ContributeModal from "./components/ContributeModal";
+import Editor from "./components/Editor.jsx";
+import TreeView from "./components/TreeView.jsx";
+import Toolbar from "./components/Toolbar.jsx";
+import StatusBar from "./components/StatusBar.jsx";
+import ConvertPanel from "./components/ConvertPanel.jsx";
+import TypesPanel from "./components/TypesPanel.jsx";
+import SearchPanel from "./components/SearchPanel.jsx";
+import ContactModal from "./components/ContactModal.jsx";
+import ContributeModal from "./components/ContributeModal.jsx";
 
 const TABS = ["tree", "search", "convert", "types", "raw"];
 

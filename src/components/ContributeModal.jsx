@@ -108,7 +108,7 @@ export default function ContributeModal({ onClose, dark }) {
                       border:"1px solid #10b981", borderRadius:6, padding:"7px 12px",
                       display:"inline-flex", alignItems:"center", gap:6,
                       cursor:"pointer", userSelect:"none" }}>
-                    <span>JSONcraft Pay</span>
+                    <span>vahid454@ybl</span>
                     <span style={{ fontSize:11, opacity:0.6 }}>📋 copy</span>
                   </div>
                   <div style={{ fontSize:11, color: mute, marginTop:6 }}>

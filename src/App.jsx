@@ -356,7 +356,7 @@ features:
             {/* Tab content */}
             {parsed && activeTab === "tree"   && <TreeView data={parsed} dark={dark} />}
             {parsed && activeTab === "search" && <SearchPanel data={parsed} dark={dark} />}
-            {activeTab === "convert"          && <ConvertPanel key={clearKey} data={parsed} input={input} inputType={inputType} dark={dark} />}
+            {activeTab === "convert"          && <ConvertPanel key={`${clearKey}-${inputType}`} data={parsed} input={input} inputType={inputType} dark={dark} />}
             {parsed && activeTab === "types"  && <TypesPanel data={parsed} dark={dark} />}
             {parsed && activeTab === "json"   && (
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>

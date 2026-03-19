@@ -102,10 +102,17 @@ export default function ConvertPanel({ data, input, inputType, dark }) {
 
   // when inputType or input changes, auto-fill the matching "to JSON" tab
   useEffect(() => {
-    if (!input) return;
+    // Always update the matching paste box with latest input
+    if (!input) {
+      // Input cleared — reset all paste boxes and go to default
+      setPasteXML(""); setPasteCSV(""); setPasteYAML("");
+      setSub("yaml");
+      return;
+    }
     if (inputType === "xml")  { setPasteXML(input);  setSub("xml-in");  }
     if (inputType === "csv")  { setPasteCSV(input);  setSub("csv-in");  }
     if (inputType === "yaml") { setPasteYAML(input); setSub("yaml-in"); }
+    if (inputType === "json") { setSub("yaml"); } // JSON input → show JSON→YAML by default
   }, [input, inputType]);
 
   const currentTab = SUB_TABS.find(t => t.id === sub);

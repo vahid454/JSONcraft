@@ -262,7 +262,7 @@ features:
           <span style={{ color: T.text, fontWeight:600, fontSize:15, letterSpacing:"-0.02em" }}>Parsly</span>
           <span style={{ fontSize:11, color: T.mute, background: T.bg2,
             padding:"2px 8px", borderRadius:20, border:`1px solid ${T.border}` }}>v2.0</span>
-          {parsed && (inputType || 'json') !== "json" && (
+          {parsed && (
             <span style={{ fontSize:11, color: dotColor, background: "transparent",
               padding:"2px 8px", borderRadius:20, border:`1px solid ${dotColor}` }}>
               {(inputType || 'json').toUpperCase()}

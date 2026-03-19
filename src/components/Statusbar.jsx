@@ -18,9 +18,9 @@ export default function StatusBar({ input, parsed, error, dark, inputType }) {
       borderTop:`1px solid ${border}`, background: bg,
       fontSize:11, color: mute, fontFamily:"inherit", flexShrink:0 }}>
       {error ? (
-        <span style={{ color:"#f87171" }}>✗ {inputType === "xml" ? "Invalid XML" : "Invalid JSON"}</span>
+        <span style={{ color:"#f87171" }}>✗ {`Invalid ${(inputType||"json").toUpperCase()}`}</span>
       ) : parsed ? (
-        <span style={{ color:"#10b981" }}>✓ Valid {inputType === "xml" ? "XML" : "JSON"}</span>
+        <span style={{ color:"#10b981" }}>✓ Valid {(inputType||"json").toUpperCase()}</span>
       ) : (
         <span>Ready</span>
       )}
@@ -34,7 +34,7 @@ export default function StatusBar({ input, parsed, error, dark, inputType }) {
         </>
       )}
       <div style={{ flex:1 }} />
-      <span style={{ color: dark ? "#1f2937" : "#cbd5e1" }}>jsoncraft · free forever · ⭐ share it</span>
+      <span style={{ color: dark ? "#1f2937" : "#cbd5e1" }}>parsly · free forever · ⭐ share it</span>
     </div>
   );
 }

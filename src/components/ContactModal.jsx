@@ -17,7 +17,7 @@ export default function ContactModal({ onClose, dark }) {
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
           name: form.name, email: form.email, message: form.message,
-          _subject: `JSONcraft message from ${form.name}`,
+          _subject: `Parsly message from ${form.name}`,
         }),
       });
       setStatus("sent");

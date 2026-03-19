@@ -41,7 +41,7 @@ export default function ContributeModal({ onClose, dark }) {
 
   // QR uses encoded UPI at runtime — not readable as plain text in source
   const qrURL = config
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(`upi://pay?pa=${config.upi}&pn=JSONcraft&cu=INR`)}`
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(`upi://pay?pa=${config.upi}&pn=Parsly&cu=INR`)}`
     : null;
 
   return (
@@ -57,9 +57,9 @@ export default function ContributeModal({ onClose, dark }) {
         {/* Header */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:6 }}>
           <div>
-            <div style={{ fontSize:20, fontWeight:700, color: txt }}>💛 Support JSONcraft</div>
+            <div style={{ fontSize:20, fontWeight:700, color: txt }}>💛 Support Parsly</div>
             <div style={{ fontSize:13, color: mute, marginTop:4, lineHeight:1.5 }}>
-              JSONcraft is free forever. If it saved you time,<br/>consider buying us a coffee!
+              Parsly is free forever. If it saved you time,<br/>consider buying us a coffee!
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -108,7 +108,7 @@ export default function ContributeModal({ onClose, dark }) {
                       border:"1px solid #10b981", borderRadius:6, padding:"7px 12px",
                       display:"inline-flex", alignItems:"center", gap:6,
                       cursor:"pointer", userSelect:"none" }}>
-                    <span>vahid454@ybl</span>
+                    <span>Parsly Pay</span>
                     <span style={{ fontSize:11, opacity:0.6 }}>📋 copy</span>
                   </div>
                   <div style={{ fontSize:11, color: mute, marginTop:6 }}>

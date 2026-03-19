@@ -86,20 +86,26 @@ export default function ConvertPanel({ data, input, inputType, dark }) {
   const mute = dark ? "#6b7280" : "#94a3b8";
   const grp  = dark ? "#374151" : "#d1d5db";
 
-  // default sub-tab: if XML was pasted, go straight to xml-in
-  const [sub, setSub]         = useState(inputType === "xml" ? "xml-in" : "yaml");
+  // default sub-tab based on what was pasted on left
+  const defaultSub = () => {
+    if (inputType === "xml")  return "xml-in";
+    if (inputType === "csv")  return "csv-in";
+    if (inputType === "yaml") return "yaml-in";
+    return "yaml"; // JSON input — default to JSON→YAML
+  };
+  const [sub, setSub] = useState(defaultSub());
   // each "to" tab has its own persistent paste box — survives tab switches
-  const [pasteYAML, setPasteYAML] = useState("");
-  const [pasteCSV,  setPasteCSV]  = useState("");
-  const [pasteXML,  setPasteXML]  = useState("");
+  const [pasteYAML, setPasteYAML] = useState(inputType === "yaml" ? input : "");
+  const [pasteCSV,  setPasteCSV]  = useState(inputType === "csv"  ? input : "");
+  const [pasteXML,  setPasteXML]  = useState(inputType === "xml"  ? input : "");
   const [copied, setCopied]       = useState(false);
 
-  // when inputType changes (user pastes XML on left), auto-fill xml-in box
+  // when inputType or input changes, auto-fill the matching "to JSON" tab
   useEffect(() => {
-    if (inputType === "xml" && input) {
-      setPasteXML(input);
-      setSub("xml-in");
-    }
+    if (!input) return;
+    if (inputType === "xml")  { setPasteXML(input);  setSub("xml-in");  }
+    if (inputType === "csv")  { setPasteCSV(input);  setSub("csv-in");  }
+    if (inputType === "yaml") { setPasteYAML(input); setSub("yaml-in"); }
   }, [input, inputType]);
 
   const currentTab = SUB_TABS.find(t => t.id === sub);

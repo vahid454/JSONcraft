@@ -41,28 +41,28 @@ function detectType(val) {
   const first  = lines[0];
   const second = lines[1] || "";
 
-  // 4. YAML — check BEFORE CSV because YAML "key: value" could have commas
-  //    Strong YAML signals:
-  //    - "key: value" or "key:" pattern on first line
-  //    - "  - item" list syntax anywhere
-  //    - Multiple "key:" lines
-  const isYAMLKey    = /^[a-zA-Z_][\w\-\.]*\s*:/.test(first);
-  const hasYAMLList  = lines.some(l => /^\s*-\s+/.test(l));
-  const yamlKeyCount = lines.filter(l => /^[a-zA-Z_][\w\-\.]*\s*:/.test(l)).length;
+  // 4. YAML — check BEFORE CSV
+  //    Strong YAML signals: "key: value" pattern, "- list" items, multiple key: lines
+  const isYAMLKey    = /^[a-zA-Z_][\w\-\. ]*\s*:(\s|$)/.test(first);
+  const hasYAMLList  = lines.some(l => /^\s*-\s+\S/.test(l));
+  const yamlKeyCount = lines.filter(l => /^[a-zA-Z_][\w\-\. ]*\s*:/.test(l)).length;
   if (isYAMLKey || hasYAMLList || yamlKeyCount >= 2) return "yaml";
 
-  // 5. CSV — strict detection:
+  // 5. CSV — very strict:
   //    - At least 2 lines
-  //    - First line looks like a header (letters/quotes separated by commas)
-  //    - Second line has same number of comma-separated values
-  //    - No XML or YAML patterns
+  //    - First line has commas AND no colons (colons = YAML/key-value)
+  //    - First line looks like clean column headers (letters, numbers, quotes)
+  //    - Second line has SAME number of commas as first (consistent columns)
+  //    - Neither line contains XML tags or YAML key: patterns
   if (lines.length >= 2) {
     const firstCommas  = (first.match(/,/g) || []).length;
     const secondCommas = (second.match(/,/g) || []).length;
-    const headerLooksRight = /^["a-zA-Z_]/.test(first) && firstCommas >= 1;
-    const columnsConsistent = Math.abs(firstCommas - secondCommas) <= 1;
-    const noXMLorYAML = !first.includes("<") && !first.includes(":");
-    if (headerLooksRight && columnsConsistent && noXMLorYAML) return "csv";
+    const hasCommas         = firstCommas >= 1;
+    const columnsConsistent = firstCommas === secondCommas; // exact match required
+    const headerClean       = /^["a-zA-Z0-9_]/.test(first);
+    const noColons          = !first.includes(":"); // colons = not CSV
+    const noXML             = !first.includes("<");
+    if (hasCommas && columnsConsistent && headerClean && noColons && noXML) return "csv";
   }
 
   return "json";

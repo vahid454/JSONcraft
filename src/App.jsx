@@ -1,6 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import yaml from "js-yaml";
-import Papa from "papaparse";
+import { xmlToJSON, yamlToJSON, csvToJSON } from "./utils/converters";
 import Editor from "./components/Editor";
 import TreeView from "./components/TreeView";
 import Toolbar from "./components/Toolbar";
@@ -13,86 +12,93 @@ import ContributeModal from "./components/ContributeModal";
 
 const TABS = ["tree", "search", "convert", "types", "json"];
 
-// ── XML parser ─────────────────────────────────────────────
+// ── XML parser — uses shared converters.js ────────────────
 function parseXML(str) {
-  const doc = new DOMParser().parseFromString(str, "text/xml");
-  const err = doc.querySelector("parsererror");
-  if (err) throw new Error("Invalid XML: " + err.textContent.slice(0, 80));
-  function n2o(node) {
-    if (node.nodeType === 3) return node.nodeValue.trim();
-    const obj = {};
-    for (const a of node.attributes || []) obj[`@${a.name}`] = a.value;
-    for (const c of node.childNodes) {
-      if (c.nodeType === 3 && !c.nodeValue.trim()) continue;
-      const v = n2o(c);
-      if (obj[c.nodeName] !== undefined) {
-        if (!Array.isArray(obj[c.nodeName])) obj[c.nodeName] = [obj[c.nodeName]];
-        obj[c.nodeName].push(v);
-      } else obj[c.nodeName] = v;
-    }
-    const k = Object.keys(obj);
-    if (k.length === 1 && k[0] === "#text") return obj["#text"];
-    return obj;
-  }
-  return n2o(doc.documentElement);
+  const result = xmlToJSON(str);
+  if (result.startsWith("Error:")) throw new Error(result.replace("Error: ", ""));
+  return JSON.parse(result);
 }
 
 // ── Smart type detection ───────────────────────────────────
-// Order matters — JSON and XML are checked first (most common)
-// CSV and YAML only detected if clearly not JSON/XML
 function detectType(val) {
-  const t = val.trimStart();
+  const t = val.trim();
+  if (!t) return "json";
 
-  // XML — starts with < tag
-  if (t.startsWith("<")) return "xml";
+  // 1. XML — check if ANY line contains an XML tag
+  //    This handles cases where there's text before the XML
+  const hasXMLTag = t.split("\n").some(l => l.trim().startsWith("<") && /^<[a-zA-Z!?\/]/.test(l.trim()));
+  if (hasXMLTag) return "xml";
 
-  // JSON — starts with { or [
+  // 2. JSON — starts with { or [
   if (t.startsWith("{") || t.startsWith("[")) return "json";
 
-  // Try parsing as JSON first — if it works, it's JSON
+  // 3. Try actual JSON.parse — handles numbers, booleans, null, quoted strings
   try { JSON.parse(t); return "json"; } catch {}
 
-  // CSV — has a header line with commas, multiple lines
-  const lines = t.split("\n").filter(l => l.trim());
+  const lines = t.split("\n").map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return "json";
+
+  const first  = lines[0];
+  const second = lines[1] || "";
+
+  // 4. YAML — check BEFORE CSV because YAML "key: value" could have commas
+  //    Strong YAML signals:
+  //    - "key: value" or "key:" pattern on first line
+  //    - "  - item" list syntax anywhere
+  //    - Multiple "key:" lines
+  const isYAMLKey    = /^[a-zA-Z_][\w\-\.]*\s*:/.test(first);
+  const hasYAMLList  = lines.some(l => /^\s*-\s+/.test(l));
+  const yamlKeyCount = lines.filter(l => /^[a-zA-Z_][\w\-\.]*\s*:/.test(l)).length;
+  if (isYAMLKey || hasYAMLList || yamlKeyCount >= 2) return "yaml";
+
+  // 5. CSV — strict detection:
+  //    - At least 2 lines
+  //    - First line looks like a header (letters/quotes separated by commas)
+  //    - Second line has same number of comma-separated values
+  //    - No XML or YAML patterns
   if (lines.length >= 2) {
-    const firstLine = lines[0];
-    const commaCount = (firstLine.match(/,/g) || []).length;
-    if (commaCount >= 1 && !firstLine.includes("{") && !firstLine.includes(":")) {
-      return "csv";
-    }
+    const firstCommas  = (first.match(/,/g) || []).length;
+    const secondCommas = (second.match(/,/g) || []).length;
+    const headerLooksRight = /^["a-zA-Z_]/.test(first) && firstCommas >= 1;
+    const columnsConsistent = Math.abs(firstCommas - secondCommas) <= 1;
+    const noXMLorYAML = !first.includes("<") && !first.includes(":");
+    if (headerLooksRight && columnsConsistent && noXMLorYAML) return "csv";
   }
 
-  // YAML — key: value on multiple lines, not JSON-like
-  const yamlPattern = /^[a-zA-Z_][\w\s]*:\s*.+/m;
-  if (yamlPattern.test(t) && !t.includes("{")) return "yaml";
-
-  // Default fallback
   return "json";
 }
 
-// ── Safe universal parser ──────────────────────────────────
+// ── Safe universal parser with proper fallback chain ───────
 function safeParse(val) {
-  if (!val || typeof val !== "string") return { parsed: null, error: "Empty input", type: "json" };
-  
+  if (!val || typeof val !== "string" || !val.trim()) {
+    return { parsed: null, error: "Empty input", type: "json" };
+  }
+
+  const t = val.trimStart();
   let type = "json";
   try { type = detectType(val); } catch { type = "json"; }
 
-  // Always try JSON first if it looks like JSON
-  if (type === "json" || val.trimStart().startsWith("{") || val.trimStart().startsWith("[")) {
+  // ── Try each type in order, with fallback chain ──────────
+
+  // JSON first if detected or starts with { [
+  if (type === "json" || t.startsWith("{") || t.startsWith("[")) {
     try {
       const parsed = JSON.parse(val);
       return { parsed, error: null, type: "json" };
-    } catch (jsonErr) {
-      if (type === "json") return { parsed: null, error: jsonErr.message, type: "json" };
+    } catch(e) {
+      // Only fail as JSON if it really looks like JSON
+      if (t.startsWith("{") || t.startsWith("[")) {
+        return { parsed: null, error: e.message, type: "json" };
+      }
     }
   }
 
   // XML
-  if (type === "xml") {
+  if (type === "xml" || t.startsWith("<")) {
     try {
       const parsed = parseXML(val);
       return { parsed, error: null, type: "xml" };
-    } catch (e) {
+    } catch(e) {
       return { parsed: null, error: e.message, type: "xml" };
     }
   }
@@ -100,36 +106,47 @@ function safeParse(val) {
   // CSV
   if (type === "csv") {
     try {
-      const result = Papa.parse(val.trim(), { header: true, skipEmptyLines: true });
-      if (!result.data || !result.data.length) throw new Error("No data found in CSV");
-      return { parsed: result.data, error: null, type: "csv" };
-    } catch (e) {
-      return { parsed: null, error: e.message, type: "csv" };
-    }
+      const r = csvToJSON(val);
+      if (r.startsWith("Error:")) {
+        // CSV failed — try YAML as fallback
+        try {
+          const yr = yamlToJSON(val);
+          if (!yr.startsWith("Error:")) return { parsed: JSON.parse(yr), error: null, type: "yaml" };
+        } catch {}
+        return { parsed: null, error: r.replace("Error: ",""), type: "csv" };
+      }
+      return { parsed: JSON.parse(r), error: null, type: "csv" };
+    } catch(e) { return { parsed: null, error: e.message, type: "csv" }; }
   }
 
   // YAML
   if (type === "yaml") {
     try {
-      const parsed = yaml.load(val);
-      if (parsed === null || parsed === undefined) throw new Error("Empty or invalid YAML");
-      if (typeof parsed !== "object") {
-        // scalar YAML — wrap it
-        return { parsed: { value: parsed }, error: null, type: "yaml" };
+      const r = yamlToJSON(val);
+      if (r.startsWith("Error:")) {
+        // YAML failed — try CSV as fallback
+        try {
+          const cr = csvToJSON(val);
+          if (!cr.startsWith("Error:")) return { parsed: JSON.parse(cr), error: null, type: "csv" };
+        } catch {}
+        return { parsed: null, error: r.replace("Error: ",""), type: "yaml" };
       }
-      return { parsed, error: null, type: "yaml" };
-    } catch (e) {
-      // YAML failed — last resort try JSON
-      try {
-        const parsed = JSON.parse(val);
-        return { parsed, error: null, type: "json" };
-      } catch {}
-      return { parsed: null, error: e.message, type: "yaml" };
-    }
+      return { parsed: JSON.parse(r), error: null, type: "yaml" };
+    } catch(e) { return { parsed: null, error: e.message, type: "yaml" }; }
   }
 
-  // Final fallback
-  return { parsed: null, error: "Could not parse input", type: "json" };
+  // Final fallback — try everything
+  const attempts = [
+    () => { const p = JSON.parse(val); return { parsed: p, error: null, type: "json" }; },
+    () => { const r = yamlToJSON(val); if (r.startsWith("Error:")) throw new Error(r); return { parsed: JSON.parse(r), error: null, type: "yaml" }; },
+    () => { const r = csvToJSON(val);  if (r.startsWith("Error:")) throw new Error(r); return { parsed: JSON.parse(r), error: null, type: "csv" }; },
+    () => { const p = parseXML(val); return { parsed: p, error: null, type: "xml" }; },
+  ];
+  for (const attempt of attempts) {
+    try { return attempt(); } catch {}
+  }
+
+  return { parsed: null, error: "Could not parse as JSON, XML, CSV or YAML", type: "json" };
 }
 
 // ── Type colors ────────────────────────────────────────────

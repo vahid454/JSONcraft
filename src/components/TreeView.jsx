@@ -1,6 +1,6 @@
 import { useState, memo, useCallback } from "react";
 
-const MAX_VISIBLE = 100; // max children rendered at once before "show more"
+const MAX_VISIBLE = 100;
 
 function getType(val) {
   if (val === null) return "null";
@@ -16,7 +16,6 @@ const ValueDisplay = memo(function ValueDisplay({ val, dark }) {
     boolean: dark ? "#f59e0b" : "#d97706",
     null:    dark ? "#f87171" : "#dc2626",
   };
-  // Truncate very long strings
   const display = type === "string" && String(val).length > 200
     ? `"${String(val).slice(0, 200)}…"`
     : type === "string" ? `"${String(val)}"` : null;
@@ -29,8 +28,8 @@ const ValueDisplay = memo(function ValueDisplay({ val, dark }) {
 });
 
 const TreeNode = memo(function TreeNode({ keyName, value, depth = 0, dark }) {
-  const [open, setOpen]         = useState(depth < 2);
-  const [showAll, setShowAll]   = useState(false);
+  const [open, setOpen]       = useState(depth < 2);
+  const [showAll, setShowAll] = useState(false);
 
   const type         = getType(value);
   const isExpandable = type === "object" || type === "array";
@@ -59,39 +58,39 @@ const TreeNode = memo(function TreeNode({ keyName, value, depth = 0, dark }) {
       <div
         onClick={handleToggle}
         style={{
-          display: "flex", alignItems: "baseline", gap: 4,
-          paddingLeft: `${depth * 16 + 6}px`, paddingRight: 8,
-          paddingTop: 2, paddingBottom: 2, borderRadius: 4,
+          display: "flex", alignItems: "baseline", gap: 5,
+          paddingLeft: `${depth * 18 + 6}px`, paddingRight: 8,
+          paddingTop: 3, paddingBottom: 3, borderRadius: 4,
           cursor: isExpandable ? "pointer" : "default",
         }}
         onMouseEnter={e => e.currentTarget.style.background = hoverBg}
         onMouseLeave={e => e.currentTarget.style.background = "transparent"}
       >
-        <span style={{ width: 12, flexShrink: 0, color: arrowColor, fontSize: 10, textAlign: "center" }}>
+        <span style={{ width: 14, flexShrink: 0, color: arrowColor, fontSize: 11, textAlign: "center" }}>
           {isExpandable ? (open ? "▾" : "▸") : ""}
         </span>
 
         {keyName !== undefined && (
           <span style={{ flexShrink: 0 }}>
             {typeof keyName === "number"
-              ? <span style={{ color: idxColor, fontSize: 11 }}>{keyName}</span>
-              : <span style={{ color: keyColor, fontSize: 11 }}>"{keyName}"</span>}
-            <span style={{ color: colonColor, margin: "0 4px", fontSize: 11 }}>:</span>
+              ? <span style={{ color: idxColor, fontSize: 12 }}>{keyName}</span>
+              : <span style={{ color: keyColor, fontSize: 12 }}>"{keyName}"</span>}
+            <span style={{ color: colonColor, margin: "0 4px", fontSize: 12 }}>:</span>
           </span>
         )}
 
         {isExpandable ? (
-          <span style={{ color: braceColor, fontSize: 11 }}>
+          <span style={{ color: braceColor, fontSize: 12 }}>
             {type === "array" ? "[" : "{"}
             {!open && (
-              <span style={{ color: countColor, fontSize: 11, marginLeft: 4 }}>
+              <span style={{ color: countColor, fontSize: 12, marginLeft: 5 }}>
                 {count} {count === 1 ? "item" : "items"}
-                <span style={{ marginLeft: 4 }}>{type === "array" ? "]" : "}"}</span>
+                <span style={{ marginLeft: 5 }}>{type === "array" ? "]" : "}"}</span>
               </span>
             )}
           </span>
         ) : (
-          <span style={{ fontSize: 11 }}><ValueDisplay val={value} dark={dark} /></span>
+          <span style={{ fontSize: 12 }}><ValueDisplay val={value} dark={dark} /></span>
         )}
       </div>
 
@@ -104,8 +103,8 @@ const TreeNode = memo(function TreeNode({ keyName, value, depth = 0, dark }) {
             <div
               onClick={() => setShowAll(true)}
               style={{
-                paddingLeft: `${(depth + 1) * 16 + 6}px`, paddingTop: 3, paddingBottom: 3,
-                fontSize: 11, color: dark ? "#10b981" : "#059669", cursor: "pointer",
+                paddingLeft: `${(depth + 1) * 18 + 6}px`, paddingTop: 4, paddingBottom: 4,
+                fontSize: 12, color: dark ? "#10b981" : "#059669", cursor: "pointer",
                 background: moreColor, borderRadius: 4, margin: "2px 0",
                 display: "inline-block",
               }}>
@@ -113,8 +112,8 @@ const TreeNode = memo(function TreeNode({ keyName, value, depth = 0, dark }) {
             </div>
           )}
           <div style={{
-            paddingLeft: `${depth * 16 + 18}px`, paddingTop: 2, paddingBottom: 2,
-            fontSize: 11, color: braceColor,
+            paddingLeft: `${depth * 18 + 20}px`, paddingTop: 2, paddingBottom: 2,
+            fontSize: 12, color: braceColor,
           }}>
             {type === "array" ? "]" : "}"}
           </div>
@@ -126,7 +125,7 @@ const TreeNode = memo(function TreeNode({ keyName, value, depth = 0, dark }) {
 
 export default memo(function TreeView({ data, dark }) {
   return (
-    <div style={{ fontFamily: "'JetBrains Mono','Fira Code',monospace", lineHeight: 1.7 }}>
+    <div style={{ fontFamily: "'JetBrains Mono','Fira Code',monospace", lineHeight: 1.8 }}>
       <TreeNode value={data} depth={0} dark={dark} />
     </div>
   );

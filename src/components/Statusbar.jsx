@@ -14,9 +14,9 @@ export default function StatusBar({ input, parsed, error, dark, inputType }) {
   const mute   = dark ? "#4b5563" : "#94a3b8";
 
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:12, padding:"4px 16px",
+    <div style={{ display:"flex", alignItems:"center", gap:14, padding:"5px 18px",
       borderTop:`1px solid ${border}`, background: bg,
-      fontSize:11, color: mute, fontFamily:"inherit", flexShrink:0 }}>
+      fontSize:12, color: mute, fontFamily:"inherit", flexShrink:0 }}>
       {error ? (
         <span style={{ color:"#f87171" }}>✗ {`Invalid ${(inputType||"json").toUpperCase()}`}</span>
       ) : parsed ? (

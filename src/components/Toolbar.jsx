@@ -1,11 +1,11 @@
 export default function Toolbar({ onFormat, onMinify, onCopy, onClear, copyLabel, hasParsed, dark, inputType }) {
   const type   = inputType || "json";
   const isJSON = type === "json";
-  const bg     = dark ? "#030712" : "#f8fafc";
+  const bg     = dark ? "#030912" : "#f8fafc";
   const border = dark ? "#1f2937" : "#e2e8f0";
 
   const base = {
-    padding: "5px 12px", fontSize: 11, borderRadius: 6, cursor: "pointer",
+    padding: "6px 14px", fontSize: 12, borderRadius: 6, cursor: "pointer",
     fontFamily: "inherit", transition: "all 0.15s", border: `1px solid ${border}`,
     background: "transparent",
   };
@@ -15,7 +15,7 @@ export default function Toolbar({ onFormat, onMinify, onCopy, onClear, copyLabel
   const del = { ...base, color: dark ? "#6b7280" : "#94a3b8" };
 
   return (
-    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 16px",
+    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 18px",
       borderBottom:`1px solid ${border}`, background: bg, flexWrap:"wrap", flexShrink:0 }}>
       <button onClick={onFormat} disabled={!hasParsed || !isJSON} style={hasParsed && isJSON ? on : off}>
         ⌥ Format
@@ -23,19 +23,19 @@ export default function Toolbar({ onFormat, onMinify, onCopy, onClear, copyLabel
       <button onClick={onMinify} disabled={!hasParsed || !isJSON} style={hasParsed && isJSON ? nor : off}>
         ⊟ Minify
       </button>
-      <div style={{ width:1, height:16, background: border }} />
+      <div style={{ width:1, height:18, background: border }} />
       <button onClick={onCopy} disabled={!hasParsed} style={hasParsed ? nor : off}>
         {copyLabel === "Copied!" ? "✓ Copied!" : "⎘ Copy"}
       </button>
-      <div style={{ width:1, height:16, background: border }} />
+      <div style={{ width:1, height:18, background: border }} />
       <button onClick={onClear} style={del}>✕ Clear</button>
       {!isJSON && hasParsed && (
-        <span style={{ fontSize:11, color:"#f59e0b", marginLeft:4 }}>
+        <span style={{ fontSize:12, color:"#f59e0b", marginLeft:4 }}>
           {type.toUpperCase()} detected — use Convert tab to transform
         </span>
       )}
       <div style={{ flex:1 }} />
-      <span style={{ fontSize:11, color: dark ? "#1f2937" : "#e2e8f0" }}>
+      <span style={{ fontSize:12, color: dark ? "#1f2937" : "#e2e8f0" }}>
         JSON · XML · YAML · CSV · TypeScript
       </span>
     </div>

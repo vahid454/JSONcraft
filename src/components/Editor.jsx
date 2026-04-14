@@ -1,5 +1,4 @@
-// Replaced Monaco with a lightweight textarea
-// Monaco was causing black screen on load and language switches
+// Lightweight textarea editor — readable font sizes for both themes
 export default function Editor({ value, onChange, dark, error, language }) {
   const bg     = dark ? "#030712" : "#ffffff";
   const txt    = dark ? "#e2e8f0" : "#1e293b";
@@ -22,11 +21,11 @@ export default function Editor({ value, onChange, dark, error, language }) {
         resize: "none",
         border: "none",
         outline: "none",
-        padding: "14px 16px",
+        padding: "16px 18px",
         background: bg,
         color: txt,
-        fontSize: 12,
-        lineHeight: 1.7,
+        fontSize: 13.5,
+        lineHeight: 1.75,
         fontFamily: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
         boxSizing: "border-box",
         display: "block",

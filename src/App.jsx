@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { xmlToJSON, yamlToJSON, csvToJSON } from "./utils/converters";
 import Editor from "./components/Editor";
 import TreeView from "./components/TreeView";
@@ -7,6 +7,7 @@ import StatusBar from "./components/StatusBar";
 import ConvertPanel from "./components/ConvertPanel";
 import TypesPanel from "./components/TypesPanel";
 import SearchPanel from "./components/SearchPanel";
+import HistoryPanel, { useHistory } from "./components/HistoryPanel";
 import DiffPage from "./components/DiffPage";
 import JWTPage from "./components/JWTPage";
 import ToolsPage from "./components/ToolsPage";
@@ -20,6 +21,7 @@ const TABS = [
   { id:"convert", label:"Convert", icon:"⇄" },
   { id:"types",   label:"Types",   icon:"{}" },
   { id:"json",    label:"JSON",    icon:"{ }" },
+  { id:"history", label:"History", icon:"⏱" },
 ];
 
 function parseXML(str) {
@@ -92,32 +94,62 @@ function safeParse(val) {
   return { parsed: null, error: "Could not parse as JSON, XML, CSV or YAML", type: "json" };
 }
 
-function typeColor(type) {
-  if (type === "xml")  return "#f59e0b";
-  if (type === "csv")  return "#a78bfa";
-  if (type === "yaml") return "#38bdf8";
+function typeColor(t) {
+  if (t === "xml")  return "#f59e0b";
+  if (t === "csv")  return "#a78bfa";
+  if (t === "yaml") return "#38bdf8";
   return "#10b981";
 }
 
-// ── Full-window page modes
-const PAGE_MODES = ["diff", "jwt", "tools"];
+function mkTheme(dark) {
+  return dark ? {
+    bg:"#080f1e", bg2:"#0d1929", bg3:"#111f35",
+    border:"#1a2540", text:"#e2e8f0", textSub:"#94a3b8", mute:"#64748b", dimBg:"#1a2540",
+  } : {
+    bg:"#ffffff", bg2:"#f8fafc", bg3:"#f1f5f9",
+    border:"#e2e8f0", text:"#0f172a", textSub:"#475569", mute:"#64748b", dimBg:"#e2e8f0",
+  };
+}
+
+function NavBtn({ children, onClick, accent, T, extraStyle }) {
+  const [hov, setHov] = useState(false);
+  const s = {
+    fontSize:12, padding:"5px 11px", borderRadius:7, cursor:"pointer",
+    fontFamily:"inherit", transition:"all 0.14s",
+    border: accent ? `1px solid ${accent}44` : `1px solid ${T.border}`,
+    background: accent ? (hov ? `${accent}22` : `${accent}0e`) : (hov ? T.bg3 : "transparent"),
+    color: accent || T.textSub, fontWeight:500,
+    ...extraStyle,
+  };
+  return (
+    <button onClick={onClick} style={s}
+      onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}>
+      {children}
+    </button>
+  );
+}
 
 export default function App() {
-  const [input, setInput]               = useState("");
-  const [parsed, setParsed]             = useState(null);
-  const [error, setError]               = useState(null);
-  const [inputType, setInputType]       = useState("json");
-  const [dark, setDark]                 = useState(true);
-  const [activeTab, setActiveTab]       = useState("tree");
-  const [pageMode, setPageMode]         = useState(null); // null | "diff" | "jwt" | "tools"
-  const [copyLabel, setCopyLabel]       = useState("Copy");
-  const [showContact, setShowContact]   = useState(false);
+  const [input, setInput]         = useState("");
+  const [parsed, setParsed]       = useState(null);
+  const [error, setError]         = useState(null);
+  const [inputType, setInputType] = useState("json");
+  const [dark, setDark]           = useState(true);
+  const [activeTab, setActiveTab] = useState("tree");
+  const [pageMode, setPageMode]   = useState(null);
+  const [copyLabel, setCopyLabel] = useState("Copy");
+  const [showContact, setShowContact]     = useState(false);
   const [showContribute, setShowContribute] = useState(false);
-  const [showUrlFetch, setShowUrlFetch] = useState(false);
-  const [clearKey, setClearKey]         = useState(0);
-  const debounceRef = useRef(null);
+  const [showUrlFetch, setShowUrlFetch]   = useState(false);
+  const [clearKey, setClearKey]   = useState(0);
+  const debounceRef  = useRef(null);
+  const histPushRef  = useRef(null);
+
+  const { entries: histEntries, push: histPush, remove: histRemove, clear: histClear } = useHistory();
+  useEffect(() => { histPushRef.current = histPush; }, [histPush]);
 
   const goHome = useCallback(() => setPageMode(null), []);
+  const T = mkTheme(dark);
 
   const tryParse = useCallback((val) => {
     try {
@@ -125,257 +157,213 @@ export default function App() {
       if (!val || !val.trim()) { setParsed(null); setError(null); setInputType("json"); return; }
       const run = () => {
         try {
-          const result = safeParse(val);
-          setParsed(result.parsed || null);
-          setError(result.error || null);
-          setInputType(result.type || "json");
-        } catch(e) { setParsed(null); setError(String(e.message || e)); setInputType("json"); }
+          const r = safeParse(val);
+          setParsed(r.parsed || null);
+          setError(r.error || null);
+          setInputType(r.type || "json");
+          if (r.parsed && !r.error) histPushRef.current?.(val, r.type || "json");
+        } catch(e) { setParsed(null); setError(String(e.message||e)); setInputType("json"); }
       };
       clearTimeout(debounceRef.current);
       if (val.length < 50000) run();
-      else debounceRef.current = setTimeout(run, 300);
-    } catch(e) { setParsed(null); setError(String(e.message || e)); setInputType("json"); }
+      else debounceRef.current = setTimeout(run, 400);
+    } catch(e) { setParsed(null); setError(String(e.message||e)); setInputType("json"); }
   }, []);
 
-  const format = () => { if (parsed && (inputType||"json") === "json") setInput(JSON.stringify(parsed, null, 2)); };
-  const minify = () => { if (parsed && (inputType||"json") === "json") setInput(JSON.stringify(parsed)); };
+  const format = () => { if (parsed && inputType==="json") setInput(JSON.stringify(parsed,null,2)); };
+  const minify = () => { if (parsed && inputType==="json") setInput(JSON.stringify(parsed)); };
   const clear  = () => {
     if (pageMode) { setPageMode(null); return; }
-    setInput(""); setParsed(null); setError(null); setInputType("json"); setClearKey(k => k+1);
+    setInput(""); setParsed(null); setError(null); setInputType("json"); setClearKey(k=>k+1);
   };
-  const copy   = () => { navigator.clipboard.writeText(input).then(() => { setCopyLabel("Copied!"); setTimeout(() => setCopyLabel("Copy"), 2000); }); };
+  const copy = () => {
+    navigator.clipboard.writeText(input).then(() => { setCopyLabel("Copied!"); setTimeout(()=>setCopyLabel("Copy"),2000); });
+  };
 
-  const handleDrop = useCallback((e) => {
+  const handleAppDrop = useCallback(async (e) => {
     e.preventDefault();
-    const file = e.dataTransfer.files[0];
+    const file = e.dataTransfer.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => tryParse(ev.target.result);
-    reader.readAsText(file);
+    const text = await new Promise(res => {
+      const r = new FileReader();
+      r.onload = ev => res(ev.target.result);
+      r.readAsText(file, "UTF-8"); // FIX: explicit UTF-8
+    });
+    tryParse(text);
   }, [tryParse]);
-
-  const T = {
-    bg:     dark ? "#030712" : "#ffffff",
-    bg2:    dark ? "#0c1220" : "#f8fafc",
-    border: dark ? "#1a2540" : "#e2e8f0",
-    text:   dark ? "#f1f5f9" : "#0f172a",
-    mute:   dark ? "#4b5563" : "#6b7280",
-    mute2:  dark ? "#374151" : "#9ca3af",
-  };
 
   const col = { display:"flex", flexDirection:"column", minHeight:0, minWidth:0, overflow:"hidden" };
   const dotColor = typeColor(inputType || "json");
+  const pageProps = { dark, onClose:goHome, onDarkToggle:()=>setDark(d=>!d) };
 
-  const navBtn = (id, label, icon, active) => ({
-    btn: {
-      display: "flex", alignItems: "center", gap: 6,
-      fontSize: 12, padding: "5px 11px", borderRadius: 7, cursor: "pointer",
-      fontFamily: "inherit", transition: "all 0.15s", border: "none",
-      background: active ? (dark ? "#10b98122" : "#ecfdf5") : "transparent",
-      color: active ? "#10b981" : T.mute,
-      fontWeight: active ? 700 : 400,
-      outline: active ? "1.5px solid #10b98144" : "none",
-    }
-  });
+  // Full-window page modes
+  if (pageMode === "diff")  return <div style={{height:"100vh",overflow:"hidden",fontFamily:"'JetBrains Mono','Fira Code',monospace"}}><DiffPage {...pageProps} initialLeft={input?(parsed?JSON.stringify(parsed,null,2):input):""} /></div>;
+  if (pageMode === "jwt")   return <div style={{height:"100vh",overflow:"hidden",fontFamily:"'JetBrains Mono','Fira Code',monospace"}}><JWTPage  {...pageProps} initialToken={input?.trim().startsWith("ey")?input.trim():""} /></div>;
+  if (pageMode === "tools") return <div style={{height:"100vh",overflow:"hidden",fontFamily:"'JetBrains Mono','Fira Code',monospace"}}><ToolsPage {...pageProps} /></div>;
 
-  const hdrBtn = (amber, active) => ({
-    fontSize: 12, padding: "5px 11px", borderRadius: 7, cursor: "pointer",
-    fontFamily: "inherit", transition: "all 0.15s",
-    border: `1px solid ${amber ? "#78350f" : T.border}`,
-    background: amber ? "#1c1007" : (active ? T.bg2 : "transparent"),
-    color: amber ? "#f59e0b" : T.mute,
-    fontWeight: amber ? 700 : 400,
-  });
-
-  // ── Full-window pages ──────────────────────────────────────────────
-  if (pageMode === "diff") {
-    return (
-      <div style={{ height:"100vh", display:"flex", flexDirection:"column", overflow:"hidden",
-        fontFamily:"'JetBrains Mono','Fira Code',monospace", background: T.bg, color: T.text }}>
-        <DiffPage dark={dark} onClose={goHome}
-          initialLeft={input ? (parsed ? JSON.stringify(parsed, null, 2) : input) : ""}
-          onDarkToggle={() => setDark(!dark)} />
-      </div>
-    );
-  }
-
-  if (pageMode === "jwt") {
-    return (
-      <div style={{ height:"100vh", display:"flex", flexDirection:"column", overflow:"hidden",
-        fontFamily:"'JetBrains Mono','Fira Code',monospace", background: T.bg, color: T.text }}>
-        <JWTPage dark={dark} onClose={goHome} onDarkToggle={() => setDark(!dark)} />
-      </div>
-    );
-  }
-
-  if (pageMode === "tools") {
-    return (
-      <div style={{ height:"100vh", display:"flex", flexDirection:"column", overflow:"hidden",
-        fontFamily:"'JetBrains Mono','Fira Code',monospace", background: T.bg, color: T.text }}>
-        <ToolsPage dark={dark} onClose={goHome} onDarkToggle={() => setDark(!dark)} />
-      </div>
-    );
-  }
-
-  // ── Main Parsly UI ─────────────────────────────────────────────────
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", overflow:"hidden",
-      fontFamily:"'JetBrains Mono','Fira Code',monospace", background: T.bg, color: T.text }}>
+      fontFamily:"'JetBrains Mono','Fira Code',monospace", background:T.bg, color:T.text }}>
 
-      {/* ── Header ── */}
-      <header style={{ flexShrink:0, height:48, borderBottom:`1px solid ${T.border}`,
-        padding:"0 16px", display:"flex", alignItems:"center",
-        justifyContent:"space-between", background: T.bg }}>
+      {/* Header */}
+      <header style={{ flexShrink:0, height:50, borderBottom:`1px solid ${T.border}`,
+        padding:"0 18px", display:"flex", alignItems:"center", justifyContent:"space-between",
+        background:T.bg2 }}>
 
-        {/* Logo */}
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:30, height:30, borderRadius:8, background:"linear-gradient(135deg,#10b981,#059669)",
+          <div style={{ width:32, height:32, borderRadius:9,
+            background:"linear-gradient(135deg,#10b981 0%,#059669 100%)",
             display:"flex", alignItems:"center", justifyContent:"center",
-            color:"#fff", fontWeight:800, fontSize:15, userSelect:"none",
-            boxShadow:"0 2px 8px rgba(16,185,129,0.4)" }}>P</div>
-          <span style={{ color: T.text, fontWeight:700, fontSize:16, letterSpacing:"-0.03em" }}>Parsly</span>
-          <span style={{ fontSize:10, color: T.mute, background: T.bg2,
-            padding:"2px 8px", borderRadius:20, border:`1px solid ${T.border}` }}>v2.1</span>
+            color:"#fff", fontWeight:800, fontSize:16, userSelect:"none",
+            boxShadow:"0 2px 10px rgba(16,185,129,0.35)" }}>P</div>
+          <span style={{ color:T.text, fontWeight:800, fontSize:17, letterSpacing:"-0.04em" }}>Parsly</span>
+          <span style={{ fontSize:10, color:T.mute, background:T.bg3,
+            padding:"2px 8px", borderRadius:20, border:`1px solid ${T.border}`, fontWeight:600 }}>v2.1</span>
           {parsed && (
-            <span style={{ fontSize:10, color: dotColor, padding:"2px 8px",
-              borderRadius:20, border:`1px solid ${dotColor}44`, background:`${dotColor}11` }}>
+            <span style={{ fontSize:10, color:dotColor, padding:"2px 9px", borderRadius:20,
+              border:`1px solid ${dotColor}44`, background:`${dotColor}12`, fontWeight:700, letterSpacing:"0.04em" }}>
               {(inputType||"json").toUpperCase()}
             </span>
           )}
         </div>
 
-        {/* Nav tools */}
-        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-          <button onClick={() => setShowUrlFetch(true)} style={hdrBtn(false, false)}>🌐 URL</button>
-          <div style={{ width:1, height:20, background: T.border, margin:"0 4px" }} />
-
-          {/* Diff */}
-          <button onClick={() => setPageMode("diff")} style={{
-            ...hdrBtn(false, false),
-            color: "#a78bfa", border: "1px solid #a78bfa44",
-            background: dark ? "#a78bfa11" : "#f5f3ff",
-            display:"flex", alignItems:"center", gap:5,
-          }}>⟺ Diff</button>
-
-          {/* JWT */}
-          <button onClick={() => setPageMode("jwt")} style={{
-            ...hdrBtn(false, false),
-            color: "#38bdf8", border: "1px solid #38bdf844",
-            background: dark ? "#38bdf811" : "#f0f9ff",
-            display:"flex", alignItems:"center", gap:5,
-          }}>🔑 JWT</button>
-
-          {/* Tools */}
-          <button onClick={() => setPageMode("tools")} style={{
-            ...hdrBtn(false, false),
-            color: "#fb923c", border: "1px solid #fb923c44",
-            background: dark ? "#fb923c11" : "#fff7ed",
-            display:"flex", alignItems:"center", gap:5,
-          }}>⚙ Tools</button>
-
-          <div style={{ width:1, height:20, background: T.border, margin:"0 4px" }} />
-          <button onClick={() => setShowContact(true)} style={{ ...hdrBtn(false), padding:"5px 9px", fontSize:14 }}>✉</button>
-          <button onClick={() => setDark(!dark)} style={{ ...hdrBtn(false), padding:"5px 9px" }}>{dark ? "☀" : "☾"}</button>
-          <button onClick={() => setShowContribute(true)} style={hdrBtn(true)}>$ Contribute</button>
+        <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+          <NavBtn onClick={()=>setShowUrlFetch(true)} T={T}>🌐 URL</NavBtn>
+          <div style={{ width:1, height:20, background:T.border, margin:"0 3px" }} />
+          <NavBtn onClick={()=>setPageMode("diff")}  T={T} accent="#a78bfa">⟺ Diff</NavBtn>
+          <NavBtn onClick={()=>setPageMode("jwt")}   T={T} accent="#38bdf8">🔑 JWT</NavBtn>
+          <NavBtn onClick={()=>setPageMode("tools")} T={T} accent="#fb923c">⚙ Tools</NavBtn>
+          <div style={{ width:1, height:20, background:T.border, margin:"0 3px" }} />
+          <NavBtn onClick={()=>setShowContact(true)} T={T} extraStyle={{ padding:"5px 9px", fontSize:15 }}>✉</NavBtn>
+          <NavBtn onClick={()=>setDark(!dark)} T={T} extraStyle={{ padding:"5px 10px" }}>{dark?"☀":"☾"}</NavBtn>
+          <NavBtn onClick={()=>setShowContribute(true)} T={T}
+            extraStyle={{ color:"#f59e0b", border:"1px solid #78350f", background:"#1c1007", fontWeight:700 }}>
+            $ Support
+          </NavBtn>
         </div>
       </header>
 
-      {/* ── Toolbar ── */}
+      {/* Toolbar */}
       <Toolbar onFormat={format} onMinify={minify} onCopy={copy} onClear={clear}
-               copyLabel={copyLabel} hasParsed={!!parsed} dark={dark} inputType={inputType} />
+               copyLabel={copyLabel} hasParsed={!!parsed} dark={dark} inputType={inputType}
+               onFileUpload={tryParse} />
 
-      {/* ── Main ── */}
+      {/* Main */}
       <div style={{ flex:1, display:"flex", overflow:"hidden", minHeight:0 }}>
 
         {/* Left: Editor */}
         <div style={{ ...col, width:"50%", borderRight:`1px solid ${T.border}` }}
-          onDragOver={e => e.preventDefault()}
-          onDrop={handleDrop}>
-          <div style={{ flexShrink:0, padding:"5px 14px", borderBottom:`1px solid ${T.border}`,
-            background: T.bg2, display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ width:7, height:7, borderRadius:"50%", flexShrink:0,
-              display:"inline-block", background: dotColor }} />
-            <span style={{ fontSize:10, color: T.mute, letterSpacing:"0.1em", textTransform:"uppercase" }}>Input</span>
-            <span style={{ fontSize:10, color: T.mute2, opacity:0.5 }}>— drag & drop a file</span>
+          onDragOver={e=>e.preventDefault()} onDrop={handleAppDrop}>
+
+          <div style={{ flexShrink:0, padding:"6px 16px", borderBottom:`1px solid ${T.border}`,
+            background:T.bg2, display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ width:8, height:8, borderRadius:"50%", background:dotColor,
+              boxShadow:`0 0 6px ${dotColor}66`, flexShrink:0 }} />
+            <span style={{ fontSize:10, color:T.textSub, letterSpacing:"0.1em", textTransform:"uppercase", fontWeight:600 }}>Input</span>
+            <span style={{ fontSize:10, color:T.mute, opacity:0.7 }}>— paste · drag file · open</span>
             {input && (
-              <span style={{ marginLeft:"auto", fontSize:10, color: T.mute2 }}>
-                {new Blob([input]).size < 1024 ? `${new Blob([input]).size} B` : `${(new Blob([input]).size/1024).toFixed(1)} KB`}
+              <span style={{ marginLeft:"auto", fontSize:10, color:T.mute }}>
+                {new Blob([input]).size<1024 ? `${new Blob([input]).size} B` : `${(new Blob([input]).size/1024).toFixed(1)} KB`}
               </span>
             )}
           </div>
+
           <div style={{ flex:1, minHeight:0, overflow:"hidden" }}>
             <Editor value={input} onChange={tryParse} dark={dark} error={!!error}
-              language={(inputType||"json") === "xml" ? "xml" : "json"} />
+              language={(inputType||"json")==="xml"?"xml":"json"} />
           </div>
         </div>
 
         {/* Right: Tabs */}
         <div style={{ ...col, flex:1 }}>
           <div style={{ flexShrink:0, borderBottom:`1px solid ${T.border}`,
-            background: T.bg2, display:"flex", padding:"0 10px", gap:2 }}>
-            {TABS.map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-                padding:"9px 12px", fontSize:11, letterSpacing:"0.05em", textTransform:"uppercase",
-                border:"none", borderBottom: activeTab===tab.id ? "2px solid #10b981":"2px solid transparent",
-                background:"transparent", cursor:"pointer", transition:"all 0.15s",
-                color: activeTab===tab.id ? "#10b981" : T.mute, fontFamily:"inherit",
-                display:"flex", alignItems:"center", gap:4,
-              }}>
-                <span style={{ fontSize:9, opacity:0.6 }}>{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
+            background:T.bg2, display:"flex", padding:"0 12px", gap:1 }}>
+            {TABS.map(tab => {
+              const isActive = activeTab===tab.id;
+              return (
+                <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{
+                  padding:"10px 13px", fontSize:11, letterSpacing:"0.05em", textTransform:"uppercase",
+                  border:"none", borderBottom: isActive?"2px solid #10b981":"2px solid transparent",
+                  background:"transparent", cursor:"pointer", transition:"all 0.15s",
+                  color: isActive?"#10b981":T.textSub,
+                  fontFamily:"inherit", fontWeight: isActive?700:500,
+                  display:"flex", alignItems:"center", gap:5,
+                }}>
+                  <span style={{ fontSize:10, opacity:isActive?0.8:0.5 }}>{tab.icon}</span>
+                  {tab.label}
+                  {tab.id==="history" && histEntries.length>0 && (
+                    <span style={{ fontSize:9, padding:"1px 5px", borderRadius:10,
+                      background:isActive?"#10b981":T.dimBg, color:isActive?"#fff":T.mute, fontWeight:700 }}>
+                      {histEntries.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           <div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden",
-            padding: activeTab === "tree" || activeTab === "search" ? "12px 14px" : 16,
-            background: T.bg }}>
+            padding:16, background:T.bg }}>
 
             {error && (
-              <div style={{ display:"flex", gap:10, background:"rgba(127,29,29,0.2)",
-                border:"1px solid #7f1d1d55", borderRadius:8, padding:12, marginBottom:14 }}>
-                <span style={{ color:"#f87171", flexShrink:0, fontSize:14 }}>✗</span>
+              <div style={{ display:"flex", gap:10, background:"rgba(248,113,113,0.08)",
+                border:"1px solid rgba(248,113,113,0.3)", borderRadius:8, padding:"12px 14px", marginBottom:14 }}>
+                <span style={{ color:"#f87171", flexShrink:0, fontSize:15 }}>⚠</span>
                 <div>
-                  <div style={{ fontSize:12, fontWeight:600, color:"#fecaca", marginBottom:2 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#fca5a5", marginBottom:3 }}>
                     Invalid {(inputType||"json").toUpperCase()}
                   </div>
-                  <div style={{ fontSize:11, opacity:0.8, color:"#fca5a5" }}>{error}</div>
+                  <div style={{ fontSize:11, color:"#f87171", opacity:0.85 }}>{error}</div>
                 </div>
               </div>
             )}
 
-            {!input && !error && activeTab !== "convert" && (
+            {!input && !error && activeTab!=="convert" && activeTab!=="history" && (
               <div style={{ display:"flex", flexDirection:"column", alignItems:"center",
-                justifyContent:"center", height:"80%", gap:10, opacity:0.08, userSelect:"none" }}>
-                <div style={{ fontSize:56, fontWeight:700, color: T.mute }}>{"{}"}</div>
-                <div style={{ fontSize:13, color: T.mute }}>Paste JSON · XML · CSV · YAML</div>
-                <div style={{ fontSize:11, color: T.mute }}>or drag & drop · load from URL</div>
+                justifyContent:"center", height:"75%", gap:14, userSelect:"none" }}>
+                <div style={{ fontSize:52, color:T.border }}>{"{}"}</div>
+                <div style={{ fontSize:14, color:T.mute, fontWeight:600 }}>Paste any data to get started</div>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", justifyContent:"center" }}>
+                  {["JSON","XML","YAML","CSV"].map(t=>(
+                    <span key={t} style={{ fontSize:11, padding:"4px 12px", borderRadius:20,
+                      border:`1px solid ${T.border}`, color:T.mute }}>{t}</span>
+                  ))}
+                </div>
+                <div style={{ fontSize:11, color:T.mute, opacity:0.6 }}>
+                  drag & drop · paste · load from URL · open file
+                </div>
               </div>
             )}
 
-            {parsed && activeTab === "tree"    && <TreeView data={parsed} dark={dark} />}
-            {parsed && activeTab === "search"  && <SearchPanel data={parsed} dark={dark} />}
-            {activeTab === "convert"           && <ConvertPanel key={`${clearKey}-${inputType}`} data={parsed} input={input} inputType={inputType} dark={dark} />}
-            {parsed && activeTab === "types"   && <TypesPanel data={parsed} dark={dark} />}
-            {parsed && activeTab === "json"    && (
+            {parsed && activeTab==="tree"   && <TreeView data={parsed} dark={dark} />}
+            {parsed && activeTab==="search" && <SearchPanel data={parsed} dark={dark} />}
+            {activeTab==="convert"          && <ConvertPanel key={`${clearKey}-${inputType}`} data={parsed} input={input} inputType={inputType} dark={dark} />}
+            {parsed && activeTab==="types"  && <TypesPanel data={parsed} dark={dark} />}
+            {activeTab==="history"          && (
+              <HistoryPanel entries={histEntries}
+                onLoad={text=>{tryParse(text);setActiveTab("tree");}}
+                onRemove={histRemove} onClear={histClear} dark={dark} />
+            )}
+            {parsed && activeTab==="json"   && (
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                <div style={{ display:"flex", justifyContent:"flex-end", gap:8 }}>
+                  <button onClick={format} style={{ fontSize:11, padding:"4px 12px", borderRadius:6,
+                    cursor:"pointer", border:`1px solid ${T.border}`, background:"transparent",
+                    color:T.textSub, fontFamily:"inherit" }}>Format</button>
                   <button id="json-copy-btn"
-                    onClick={() => navigator.clipboard.writeText(JSON.stringify(parsed,null,2)).then(() => {
-                      const b = document.getElementById("json-copy-btn");
-                      if (b) { b.textContent="✓ Copied"; setTimeout(()=>b.textContent="Copy JSON",1500); }
+                    onClick={()=>navigator.clipboard.writeText(JSON.stringify(parsed,null,2)).then(()=>{
+                      const b=document.getElementById("json-copy-btn");
+                      if(b){b.textContent="✓ Copied";setTimeout(()=>b.textContent="Copy JSON",1500);}
                     })}
                     style={{ fontSize:11, padding:"4px 12px", borderRadius:6, cursor:"pointer",
-                      border:`1px solid ${dark?"#374151":"#e2e8f0"}`, background:"transparent",
-                      color: dark?"#6b7280":"#94a3b8", fontFamily:"inherit" }}>
+                      border:`1px solid ${T.border}`, background:"transparent", color:T.textSub, fontFamily:"inherit" }}>
                     Copy JSON
                   </button>
                 </div>
-                <pre style={{ fontSize:12, color: dark?"#d1d5db":"#374151", lineHeight:1.6,
-                  whiteSpace:"pre-wrap", wordBreak:"break-word", margin:0,
-                  background: dark?"#0c1220":"#ffffff", borderRadius:8, padding:14,
-                  border:`1px solid ${dark?"#1a2540":"#e2e8f0"}` }}>
-                  {JSON.stringify(parsed, null, 2)}
+                <pre style={{ fontSize:12, color:T.text, lineHeight:1.7, whiteSpace:"pre-wrap",
+                  wordBreak:"break-word", margin:0, background:T.bg2, borderRadius:8, padding:16,
+                  border:`1px solid ${T.border}`, overflowY:"auto" }}>
+                  {JSON.stringify(parsed,null,2)}
                 </pre>
               </div>
             )}
@@ -385,9 +373,9 @@ export default function App() {
 
       <StatusBar input={input} parsed={parsed} error={error} dark={dark} inputType={inputType} />
 
-      {showContact    && <ContactModal    onClose={() => setShowContact(false)}    dark={dark} />}
-      {showContribute && <ContributeModal onClose={() => setShowContribute(false)} dark={dark} />}
-      {showUrlFetch   && <UrlFetchModal   onLoad={tryParse} onClose={() => setShowUrlFetch(false)} dark={dark} />}
+      {showContact    && <ContactModal    onClose={()=>setShowContact(false)}    dark={dark} />}
+      {showContribute && <ContributeModal onClose={()=>setShowContribute(false)} dark={dark} />}
+      {showUrlFetch   && <UrlFetchModal   onLoad={tryParse} onClose={()=>setShowUrlFetch(false)} dark={dark} />}
     </div>
   );
 }
